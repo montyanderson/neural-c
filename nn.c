@@ -19,7 +19,7 @@ typedef struct {
 	size_t layers;
 } network_t;
 
-network_t *network_create(size_t layers) {
+network_t *network_create() {
 	return calloc(1, sizeof(network_t));
 }
 
@@ -86,8 +86,15 @@ void network_activate(network_t *net) {
 	}
 }
 
+void network_train(network_t *net) {
+	neuron_t *neuron;
+
+	neuron = &net->layer[0].neuron[0];
+	printf("%f\n", neuron->bias);
+}
+
 int main() {
-	network_t *net = network_create(3);
+	network_t *net = network_create();
 
 	network_layer_add(net, 2);
 	network_layer_add(net, 3);
@@ -118,6 +125,8 @@ int main() {
 
 	network_activate(net);
 
+	network_train(net);
+
 	size_t i;
 
 	double inputs[4][2] = {
@@ -145,9 +154,5 @@ int main() {
 		output = network_neuron_get(net, 2, 0)->output;
 
 		printf("%f, %f => %f (%d)\n", inputs[i][0], inputs[i][1], output, round(output) == predicted);
-	}
-
-	for(i = 0; i < 20000000; i++) {
-		network_activate(net);
 	}
 }
