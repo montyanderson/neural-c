@@ -20,36 +20,46 @@ typedef struct {
 } network_t;
 
 network_t *network_create(size_t layers) {
-	network_t *net = calloc(1, sizeof(network_t));
-
-	net->layers = layers;
-
-	if(net->layers > 0) {
-		net->layer = calloc(net->layers, sizeof(layer_t));
-	}
-
-	return net;
+	return calloc(1, sizeof(network_t));
 }
 
-void network_neuron_add(network_t *net, size_t layer_index, double bias) {
-	layer_t *layer = &net->layer[layer_index];
-	neuron_t neuron;
+int network_layer_add(network_t *net, size_t neurons) {
+	size_t i;
+	size_t previous_layer_neurons;
+	layer_t *layer;
 
-	neuron.bias = bias;
-	neuron.input = 0;
-	neuron.output = 0;
+	net->layers++;
 
-	if(layer_index > 0) {
-		neuron.weight = calloc(net->layer[layer_index - 1].neurons, sizeof(double));
+	if(!(net->layer = realloc(net->layer, net->layers * sizeof(layer_t)))) {
+		return 0;
 	}
 
-	layer->neurons++;
-	layer->neuron = realloc(layer->neuron, layer->neurons * sizeof(neuron_t));
+	layer = &net->layer[net->layers - 1];
 
-	layer->neuron[layer->neurons - 1] = neuron;
+	layer->neurons = neurons;
+
+	if(!(layer->neuron = calloc(neurons, sizeof(neuron_t)))) {
+		return 0;
+	}
+
+	if(net->layers > 1) {
+		previous_layer_neurons = net->layer[net->layers - 2].neurons;
+
+		for(i = 0; i < neurons; i++) {
+			if(!(layer->neuron[i].weight = calloc(previous_layer_neurons, sizeof(double)))) {
+				return 0;
+			}
+		}
+	}
+
+	return 1;
 }
 
-void network_weight_add(network_t *net, size_t to_layer_index, size_t from_neuron_index, size_t to_neuron_index, double weight) {
+neuron_t *network_neuron_get(network_t *net, size_t layer_index, size_t neuron_index) {
+	return &net->layer[layer_index].neuron[neuron_index];
+}
+
+void network_weight_set(network_t *net, size_t to_layer_index, size_t from_neuron_index, size_t to_neuron_index, double weight) {
 	net->layer[to_layer_index].neuron[to_neuron_index].weight[from_neuron_index] = weight;
 }
 
@@ -70,7 +80,8 @@ void network_activate(network_t *net) {
 				neuron->input += previous_layer->neuron[i].output * neuron->weight[i];
 			}
 
-			neuron->output = 1.0 / (1.0 + exp(neuron->input));
+			neuron->output = 1.0 / (1.0 + exp(0 - neuron->input));
+			//printf("%f\n", neuron->output);
 		}
 	}
 }
@@ -78,17 +89,61 @@ void network_activate(network_t *net) {
 int main() {
 	network_t *net = network_create(3);
 
-	network_neuron_add(net, 0, 0);
-	network_neuron_add(net, 0, 0);
-	network_neuron_add(net, 1, -2.8299873220539724);
-	network_neuron_add(net, 1, -2.553442160702158);
-	network_neuron_add(net, 1, -3.9735421882861974);
-	network_neuron_add(net, 2, -2.882093229195121);;
+	network_layer_add(net, 2);
+	network_layer_add(net, 3);
+	network_layer_add(net, 1);
 
-	net->layer[0].neuron[0].output = 0;
-	net->layer[0].neuron[1].output = 1;
+	network_neuron_get(net, 0, 0)->bias = 0;
+	network_neuron_get(net, 0, 1)->bias = 0;
+	network_neuron_get(net, 0, 2)->bias = 0;
+	network_neuron_get(net, 1, 0)->bias = -2.8299873220539724;
+	network_neuron_get(net, 1, 1)->bias = -2.553442160702158;
+	network_neuron_get(net, 1, 2)->bias = -3.9735421882861974;
+	network_neuron_get(net, 2, 0)->bias = -2.882093229195121;
+
+	/* layer 0->1 */
+	network_weight_set(net, 1, 0, 0, 1.8536219987667468);
+	network_weight_set(net, 1, 0, 1, 6.4371950810352505);
+	network_weight_set(net, 1, 0, 2, 2.6948043355090183);
+	network_weight_set(net, 1, 1, 0, 1.9806931670574952);
+	network_weight_set(net, 1, 1, 1, 6.4246236041469595);
+	network_weight_set(net, 1, 1, 2, 2.5756603225575634);
+	/* layer 1->2 */
+	network_weight_set(net, 2, 0, 0, -4.473585881440039);
+	network_weight_set(net, 2, 1, 0, 8.255999612040616);
+	network_weight_set(net, 2, 2, 0, -5.7787873318156295);
+
+	network_neuron_get(net, 0, 0)->output = 0;
+	network_neuron_get(net, 0, 1)->output = 0;
 
 	network_activate(net);
 
-	printf("%f\n", net->layer[2].neuron[0].output);
+	size_t i;
+
+	double inputs[4][2] = {
+		{ 1, 0 },
+		{ 1, 1 },
+		{ 0, 1 },
+		{ 0, 0 }
+	};
+
+	double results[4] = {
+		1,
+		0,
+		1,
+		0
+	};
+
+	double output, predicted;
+
+	for(i = 0; i < 4; i++) {
+		network_neuron_get(net, 0, 0)->output = inputs[i][0];
+		network_neuron_get(net, 0, 1)->output = inputs[i][1];
+		network_activate(net);
+
+		predicted = results[i];
+		output = network_neuron_get(net, 2, 0)->output;
+
+		printf("%f, %f => %f (%d)\n", inputs[i][0], inputs[i][1], output, round(output) == predicted);
+	}
 }
