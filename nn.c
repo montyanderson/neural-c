@@ -81,7 +81,7 @@ void network_activate(network_t *net) {
 			}
 
 			neuron->output = 1.0 / (1.0 + exp(0 - neuron->input));
-			//printf("%f\n", neuron->output);
+			//neuron->output = neuron->input / (1.0 + abs(neuron->input));
 		}
 	}
 }
@@ -147,7 +147,7 @@ int main() {
 		printf("%f, %f => %f (%d)\n", inputs[i][0], inputs[i][1], output, round(output) == predicted);
 	}
 
-	for(i = 0; i < 2000000; i++) {
+	for(i = 0; i < 20000000; i++) {
 		network_activate(net);
 	}
 }
