@@ -146,4 +146,8 @@ int main() {
 
 		printf("%f, %f => %f (%d)\n", inputs[i][0], inputs[i][1], output, round(output) == predicted);
 	}
+
+	for(i = 0; i < 2000000; i++) {
+		network_activate(net);
+	}
 }
